@@ -17,5 +17,8 @@ export default defineConfig(({ mode }) => ({
     },
 
     plugins: [react()],
-    server: { port: 5173 },
+    server: {
+        port: 5173,
+        allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.loca.lt'],
+    },
 }));

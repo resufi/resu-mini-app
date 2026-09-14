@@ -8,44 +8,22 @@ import { Waterfall } from "./components/Waterfall.tsx";
 import { DepositPanel } from "./components/DepositPanel.tsx";
 import { PositionsPanel } from "./components/PositionsPanel.tsx";
 import { Logo } from "./components/Logo.tsx";
-import { ChainNotReady } from "./components/ChainNotReady.tsx";
 import { NetworkControls } from "./components/NetworkControls.tsx";
-import { SolanaPanel } from "./components/SolanaPanel.tsx";
-import { useSolanaWallet } from "./hooks/useSolanaWallet.ts";
-import {
-	CHAINS,
-	loadChain,
-	saveChain,
-	visibleChains,
-	type ChainId,
-} from "./lib/chains.ts";
 import { useTelegram } from "./hooks/useTelegram.ts";
-import { haptic } from "./lib/telegram.ts";
 import { Loader } from "./components/Loader.tsx";
 import { HeroSkeleton } from "./components/HeroSkeleton.tsx";
 import css from "./App.module.css";
 
 const LOADER_MIN_MS = 3800;
 
+const ASSET = "tsTON";
+const UNIT = "GRAM";
+
 export default function App() {
-	const { inTelegram } = useTelegram();
-	const chains = visibleChains(inTelegram);
-	const [chain, setChainState] = useState<ChainId>(() => {
-		const saved = loadChain();
-		return chains.some((c) => c.id === saved) ? saved : chains[0].id;
-	});
-	const solana = useSolanaWallet();
-	const { data, error, loading, refresh, network } = useProtocol(
-		chain,
-		chain === "solana" ? solana.address : null,
-	);
+	useTelegram();
+	const { data, error, loading, refresh, network } = useProtocol();
 	const wallet = useTonAddress();
 	const [selected, setSelected] = useState(0);
-	function switchChain(id: ChainId) {
-		haptic("light");
-		setChainState(id);
-		saveChain(id);
-	}
 
 	const booted = useRef(false);
 	useEffect(() => {
@@ -71,12 +49,7 @@ export default function App() {
 					Resu
 					{network === "testnet" && <span className={css.chip}>testnet</span>}
 				</span>
-				<NetworkControls
-					chain={chain}
-					onChange={switchChain}
-					solana={solana}
-					chains={chains}
-				/>
+				<NetworkControls />
 			</header>
 
 			<h1 className={css.lede} data-lede>
@@ -85,9 +58,7 @@ export default function App() {
 				your place in the loss queue.
 			</h1>
 
-			{!CHAINS[chain].deployed ? (
-				<ChainNotReady chain={chain} />
-			) : !isDeployed ? (
+			{!isDeployed ? (
 				<NotDeployed />
 			) : !data ? (
 				error ? (
@@ -120,28 +91,13 @@ export default function App() {
 							headroom={data.headroom}
 							mandate={deployment.mandate}
 							rate={data.rate}
-							asset={CHAINS[chain].asset}
+							asset={ASSET}
 							selected={selected}
 							onSelect={setSelected}
 						/>
 
 						<div className={css.side}>
-							{chain === "solana" ? (
-								solana.address ? (
-									<SolanaPanel
-										data={data}
-										trancheId={selected}
-										asset={CHAINS[chain].asset}
-										wallet={solana}
-										onDone={() => void refresh()}
-									/>
-								) : (
-									<p className="muted state">
-										Connect a Solana wallet to deposit. Pool state above is live
-										from {network}.
-									</p>
-								)
-							) : wallet ? (
+							{wallet ? (
 								<>
 									<DepositPanel
 										data={data}
@@ -151,8 +107,8 @@ export default function App() {
 									<PositionsPanel
 										data={data}
 										withdrawDelay={data.vault.withdrawDelay}
-										asset={CHAINS[chain].asset}
-										unit={CHAINS[chain].unit}
+										asset={ASSET}
+										unit={UNIT}
 										onDone={() => void refresh()}
 									/>
 								</>

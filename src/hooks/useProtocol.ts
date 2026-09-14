@@ -2,8 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Address } from '@ton/core';
 import { useTonAddress } from '@tonconnect/ui-react';
 import { addr, deployment, isDeployed, TRANCHES } from '../lib/config';
-import type { ChainId } from '../lib/chains';
-import { readSolanaVault, readSolanaWallet, solanaDeployed, solanaDeployment } from '../lib/solana';
 import {
     hasApiKey,
     readAssetRate,
@@ -61,7 +59,7 @@ function lossHeadroom(tranches: TrancheState[], vault: VaultState): bigint {
 
 const REFRESH_GAP_MS = hasApiKey ? 15000 : 45000;
 
-export function useProtocol(chain: ChainId = "ton", solanaAddress: string | null = null) {
+export function useProtocol() {
     const wallet = useTonAddress();
     const [data, setData] = useState<ProtocolData | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -71,38 +69,6 @@ export function useProtocol(chain: ChainId = "ton", solanaAddress: string | null
         setLoading(true);
         setError(null);
         try {
-            if (chain === "solana") {
-                if (!solanaDeployed) return;
-                const v = await readSolanaVault();
-                const tranches = v.tranches.map((t) => ({
-                    totalAssets: t.totalAssets,
-                    totalShares: t.totalShares,
-                }));
-                const vault: VaultState = {
-                    principalDeposited: v.principalDeposited,
-                    cumulativeLoss: v.cumulativeLoss,
-                    maxLossBps: v.mandate.maxLossBps,
-                    withdrawDelay: v.mandate.withdrawDelay,
-                };
-
-                const base = {
-                    tranches,
-                    vault,
-                    headroom: lossHeadroom(tranches, vault),
-                    rate: null,
-                };
-
-                if (!solanaAddress) {
-                    setData({ ...base, wallet: null });
-                    return;
-                }
-
-                setData({ ...base, wallet: null });
-                const w = await readSolanaWallet(solanaAddress, tranches);
-                setData({ ...base, wallet: w });
-                return;
-            }
-
             if (!isDeployed) return;
             const vaultAddr = addr.vault();
             const tranches: TrancheState[] = [];
@@ -154,11 +120,7 @@ export function useProtocol(chain: ChainId = "ton", solanaAddress: string | null
         } finally {
             setLoading(false);
         }
-    }, [wallet, chain, solanaAddress]);
-
-    useEffect(() => {
-        setData(null);
-    }, [chain]);
+    }, [wallet]);
 
     useEffect(() => {
         let stopped = false;
@@ -181,6 +143,6 @@ export function useProtocol(chain: ChainId = "ton", solanaAddress: string | null
         error,
         loading,
         refresh,
-        network: chain === "solana" ? solanaDeployment.network : deployment.network,
+        network: deployment.network,
     };
 }

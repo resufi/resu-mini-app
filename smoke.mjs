@@ -61,15 +61,6 @@ if (loading) {
     check('заголовок отрендерен', html.includes('data-lede'));
     check('кнопка кошелька смонтирована', html.includes('data-tc-connect-button'));
 
-    check(
-        'переключатель сетей отрисован',
-        html.includes('TON') && html.includes('Solana'),
-    );
-
-    check(
-        'кнопка кошелька есть у обеих сетей',
-        html.includes('data-tc-connect-button') || html.includes('Connect Wallet'),
-    );
 }
 
 function envNetwork() {

@@ -1,0 +1,95 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Позволяет запустить вручную из вкладки Actions, не делая коммит.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Одновременно идёт только одна публикация. Незавершённые не отменяем:
+# оборванный деплой Pages оставляет сайт в промежуточном состоянии.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Те же проверки, что и локально: типы, сборка сообщений для контрактов,
+      # запуск приложения в браузероподобной среде. Публиковать неработающее
+      # хуже, чем не публиковать вовсе.
+      - run: npm run typecheck
+      - run: npm run selftest
+      - run: npm run smoke
+
+      # Манифест — единственное, что кошелёк скачивает сам, и единственное,
+      # чего не видно до попытки подключения. Проверяем до публикации.
+      # Переменных много, и пропущенная не ломает сборку — приложение просто
+      # молча уходит в запасное поведение. Ровно так мы потеряли манифест
+      # TonConnect и получили «invalid manifest» уже на живом сайте.
+      - run: npm run check-env
+
+      - name: Check TonConnect manifest
+        env:
+          VITE_TONCONNECT_MANIFEST_URL: ${{ secrets.VITE_TONCONNECT_MANIFEST_URL }}
+          PAGES_ORIGIN: https://${{ github.repository_owner }}.github.io
+        run: npm run check-manifest
+
+      - name: Build
+        env:
+          # Pages раздаёт сайт по пути /<репозиторий>/, а не из корня домена.
+          BASE_PATH: /${{ github.event.repository.name }}/
+
+          # Все VITE_* переменные обязаны быть здесь: сборка видит только то,
+          # что ей передали явно. Пропущенная переменная не ошибка сборки —
+          # приложение просто молча уходит в запасное поведение.
+          # --- TON ---
+          VITE_NETWORK: ${{ secrets.VITE_NETWORK || 'mainnet' }}
+          VITE_TONCONNECT_MANIFEST_URL: ${{ secrets.VITE_TONCONNECT_MANIFEST_URL }}
+          VITE_TON_ENDPOINT: ${{ secrets.VITE_TON_ENDPOINT }}
+          # Ключ toncenter снимает лимит запросов. В статической сборке он
+          # попадает в публичный бандл — см. README, раздел про Pages.
+          VITE_TONCENTER_API_KEY: ${{ secrets.VITE_TONCENTER_API_KEY }}
+
+          # --- Solana ---
+          VITE_SOLANA_NETWORK: ${{ secrets.VITE_SOLANA_NETWORK || 'devnet' }}
+          VITE_SOLANA_RPC: ${{ secrets.VITE_SOLANA_RPC }}
+          # Без него подключение по WalletConnect не работает вовсе.
+          # Публичный по назначению: попадает в бандл и виден всем.
+          VITE_WALLETCONNECT_PROJECT_ID: ${{ secrets.VITE_WALLETCONNECT_PROJECT_ID }}
+
+          # --- Telegram Mini App ---
+          # Адрес возврата из кошелька: https://t.me/<bot>/<app>.
+          VITE_TWA_RETURN_URL: ${{ secrets.VITE_TWA_RETURN_URL }}
+          VITE_SITE_URL: ${{ secrets.VITE_SITE_URL }}
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

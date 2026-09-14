@@ -8,6 +8,9 @@ import App from './App';
 import './styles/tokens.css';
 import { env } from "./lib/env.ts";
 import { TWA_RETURN_URL } from "./lib/site.ts";
+import { installTelegramMock } from "./lib/telegramMock.ts";
+
+installTelegramMock();
 
 const manifestUrl =
 	env("VITE_TONCONNECT_MANIFEST_URL") ??

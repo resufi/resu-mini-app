@@ -1,7 +1,6 @@
 .screen {
 	position: fixed;
 	inset: 0;
-	height: var(--tg-viewport);
 	display: grid;
 	align-content: center;
 	justify-items: center;

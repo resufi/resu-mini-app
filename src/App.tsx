@@ -251,7 +251,7 @@ function Details({
 					<dd className="num">{fmtDuration(vault.withdrawDelay)}</dd>
 				</div>
 				<div>
-					<dt>Senior fee</dt>
+					<dt>Shield fee</dt>
 					<dd className="num">{fmtBps(m.seniorFeeBps)}</dd>
 				</div>
 				<div>
